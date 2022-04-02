@@ -61,8 +61,6 @@ contract FlightSuretyData {
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
     event AirlineApproved(address airlineAddress, string name);
-    event PayoutWithdrawn(address paxAddress, uint256 value);
-    event InsurancePurchased(address paxAddress,uint256 amount,address airlineAddress,string  flightNo,uint256 timestamp);
 
     /**
      * @dev Constructor
@@ -151,16 +149,22 @@ contract FlightSuretyData {
         _;
     }
 
-    modifier requireUniqueVote(address _airlineAddress, address _fromAirlineAddress) {
+    modifier requireUniqueVote(
+        address _airlineAddress,
+        address _fromAirlineAddress
+    ) {
         require(
-            this.isUniqueVote(_airlineAddress,_fromAirlineAddress),
+            this.isUniqueVote(_airlineAddress, _fromAirlineAddress),
             "Caller has already voted for this airline"
         );
         _;
     }
 
     modifier requireInsuranceLimit() {
-        require(msg.value <= PAX_INSURANCE_LIMIT, "Insurance paid is higher than the limit");
+        require(
+            msg.value <= PAX_INSURANCE_LIMIT,
+            "Insurance paid is higher than the limit"
+        );
         _;
     }
 
@@ -177,51 +181,79 @@ contract FlightSuretyData {
         return operational;
     }
 
-    function isUniqueVote(address _forAirlineAddress, address _fromAirlineAddress)
+    function isUniqueVote(
+        address _forAirlineAddress,
+        address _fromAirlineAddress
+    )
         external
         view
+        requireIsOperational
+        requireAuthorisedContract
         returns (bool)
     {
-        for (uint256 idx = 0;idx < airlines[_forAirlineAddress].voters.length;idx++) 
-        {
-            if (_fromAirlineAddress == airlines[_forAirlineAddress].voters[idx]) {
+        for (
+            uint256 idx = 0;
+            idx < airlines[_forAirlineAddress].voters.length;
+            idx++
+        ) {
+            if (
+                _fromAirlineAddress == airlines[_forAirlineAddress].voters[idx]
+            ) {
                 return false;
             }
         }
         return true;
     }
 
-    function getApprovedAirlinesCount() external view returns (uint) {
+    function getApprovedAirlinesCount() external view returns (uint256) {
         return EnumerableSet.length(approvedAirlines);
     }
 
     function isAirline(address airlineAddress) external view returns (bool) {
-        return EnumerableSet.contains(registerAirlineQueue, airlineAddress) || EnumerableSet.contains(approvedAirlines, airlineAddress);
+        return
+            EnumerableSet.contains(registerAirlineQueue, airlineAddress) ||
+            EnumerableSet.contains(approvedAirlines, airlineAddress);
     }
 
-    function isApprovedAirline(address airlineAddress) external view returns (bool) {
+    function isApprovedAirline(address airlineAddress)
+        external
+        view
+        returns (bool)
+    {
         return EnumerableSet.contains(approvedAirlines, airlineAddress);
     }
 
-    function isRegisteredAirline(address airlineAddress) external view returns (bool) {
+    function isRegisteredAirline(address airlineAddress)
+        external
+        view
+        returns (bool)
+    {
         return EnumerableSet.contains(registerAirlineQueue, airlineAddress);
     }
 
-    function isPaxInsurancePayoutAvailable(address pax) external view returns (bool) {
-        return paxInsurancePayouts[pax] >0;
+    function isPaxInsurancePayoutAvailable(address pax)
+        external
+        view
+        returns (bool)
+    {
+        return paxInsurancePayouts[pax] > 0;
     }
 
-    function getPaxInsurancePayoutAvailable(address pax) external view returns (uint256) {
+    function getPaxInsurancePayoutAvailable(address pax)
+        external
+        view
+        returns (uint256)
+    {
         return paxInsurancePayouts[pax];
     }
 
+    // only used for testing otherwise would be internal
     function getPaxInsurance(
         address airlineAddress,
         string memory flight,
         uint256 timestamp,
         address paxAddress
-    ) external view requireIsOperational returns (PaxInsurance memory)   {
-        
+    ) external view requireIsOperational returns (PaxInsurance memory) {
         bytes32 flightKey = getFlightKey(airlineAddress, flight, timestamp);
 
         PaxInsurance[] memory insPolicies = paxInsurancePolicies[flightKey];
@@ -231,27 +263,27 @@ contract FlightSuretyData {
             if (insPolicy.paxAddress == paxAddress) {
                 return insPolicy;
             }
-
         }
-        return PaxInsurance({
-            premiumValue: 0,
-            paxAddress: address(0),
-            flightNo: '',
-            paidOut: false
-        });
+        return
+            PaxInsurance({
+                premiumValue: 0,
+                paxAddress: address(0),
+                flightNo: "",
+                paidOut: false
+            });
     }
 
     function getPaxInsurancePolicySize(
         address airlineAddress,
         string memory flight,
         uint256 timestamp
-    ) external view requireIsOperational returns (uint256)   {
-        
+    ) external view requireIsOperational returns (uint256) {
         bytes32 flightKey = getFlightKey(airlineAddress, flight, timestamp);
 
         PaxInsurance[] memory insPolicies = paxInsurancePolicies[flightKey];
         return insPolicies.length;
     }
+
     /**
      * @dev Sets contract operations on/off
      *
@@ -285,12 +317,15 @@ contract FlightSuretyData {
      *      Can only be called from FlightSuretyApp contract
      *
      */
-    function registerAirline(address _airlineAddress, string memory _name, bool _isVotedOveride)
+    function registerAirline(
+        address _airlineAddress,
+        string memory _name,
+        bool _isVotedOveride
+    )
         external
         requireIsOperational
         requireAuthorisedContract
         requireNewAirline(_airlineAddress)
-        //requireIsApprovedAirline
     {
         // not sure i need to use this register queue
         EnumerableSet.add(registerAirlineQueue, _airlineAddress);
@@ -320,20 +355,18 @@ contract FlightSuretyData {
         }
     }
 
-    function voteAirline(address _forAirlineAddress,address _fromAirlineAddress)
-        external
-        requireAuthorisedContract
-        requireIsOperational
-        requireIsApprovedAirline(_fromAirlineAddress) // check sender is an approved airline
-        requireUniqueVote(_forAirlineAddress,_fromAirlineAddress) // we need to check sender hasn't already voted
-    {
+    function voteAirline(
+        address _forAirlineAddress,
+        address _fromAirlineAddress
+    ) external requireAuthorisedContract requireIsOperational {
         // add their vote
         airlines[_forAirlineAddress].voters.push(_fromAirlineAddress);
 
         // div function torounds down so need to add the remainder via mod for this to work
         if (
             airlines[_forAirlineAddress].voters.length >=
-            (EnumerableSet.length(approvedAirlines).div(2) + EnumerableSet.length(approvedAirlines).mod(2))
+            (EnumerableSet.length(approvedAirlines).div(2) +
+                EnumerableSet.length(approvedAirlines).mod(2))
         ) {
             airlines[_forAirlineAddress].isVoted = true;
             updateAirlineStatus(_forAirlineAddress);
@@ -363,8 +396,6 @@ contract FlightSuretyData {
             paidOut: false
         });
         paxInsurancePolicies[flightKey].push(pi);
-
-        emit InsurancePurchased(paxAddress, amount, airlineAddress,  flightNo, timestamp);
     }
 
     /**
@@ -376,7 +407,6 @@ contract FlightSuretyData {
         string memory flight,
         uint256 timestamp
     ) external requireIsOperational requireAuthorisedContract {
-        
         bytes32 flightKey = getFlightKey(airlineAddress, flight, timestamp);
 
         PaxInsurance[] memory insPolicies = paxInsurancePolicies[flightKey];
@@ -385,11 +415,15 @@ contract FlightSuretyData {
             PaxInsurance memory insPolicy = insPolicies[index];
             if (insPolicy.paidOut == false) {
                 // calc payout
-                uint256 payoutValue = insPolicy.premiumValue.mul(INSURANCE_PAYOUT).div(100);
+                uint256 payoutValue = insPolicy
+                    .premiumValue
+                    .mul(INSURANCE_PAYOUT)
+                    .div(100);
                 insPolicy.paidOut = true;
-                paxInsurancePayouts[insPolicy.paxAddress] = paxInsurancePayouts[insPolicy.paxAddress].add(payoutValue);
+                paxInsurancePayouts[insPolicy.paxAddress] = paxInsurancePayouts[
+                    insPolicy.paxAddress
+                ].add(payoutValue);
             }
-
         }
     }
 
@@ -397,8 +431,17 @@ contract FlightSuretyData {
      *  @dev Transfers eligible payout funds to insuree
      *
      */
-    function pay(address _paxAddress) external payable requireIsOperational requireAuthorisedContract {
-        require(paxInsurancePayouts[_paxAddress] > 0, "No payouts exist for withdrawing");
+    function pay(address _paxAddress)
+        external
+        payable
+        requireIsOperational
+        requireAuthorisedContract
+        returns (uint256 amt)
+    {
+        require(
+            paxInsurancePayouts[_paxAddress] > 0,
+            "No payouts exist for withdrawing"
+        );
 
         uint256 amount = paxInsurancePayouts[_paxAddress];
 
@@ -406,9 +449,8 @@ contract FlightSuretyData {
             paxInsurancePayouts[_paxAddress] = 0;
 
             payable(_paxAddress).transfer(amount);
-
-            emit PayoutWithdrawn(_paxAddress, amount);
         }
+        return amount;
     }
 
     /**
@@ -416,7 +458,9 @@ contract FlightSuretyData {
      *      resulting in insurance payouts, the contract should be self-sustaining
      *
      */
-    function fund(address _airlineAddress, uint256 amount) external payable
+    function fund(address _airlineAddress, uint256 amount)
+        external
+        payable
         requireIsOperational
         requireAuthorisedContract
         requireAirline(_airlineAddress)

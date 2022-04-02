@@ -40,6 +40,8 @@ contract FlightSuretyApp {
     uint256 private constant AIRLINE_FUND = 10 ether;
     uint256 private constant PAX_INSURANCE_LIMIT = 1 ether;
 
+    event PayoutWithdrawn(address paxAddress, uint256 value);
+    event InsurancePurchased(address paxAddress,uint256 amount,address airlineAddress,string  flightNo,uint256 timestamp);
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
     /********************************************************************************************/
@@ -86,6 +88,22 @@ contract FlightSuretyApp {
         require(
             !flightSuretyData.isAirline(_airlineAddress),
             "Caller is an airline alreday"
+        );
+        _;
+    }
+
+    modifier requireIsAirline(address _airlineAddress) {
+        require(
+            flightSuretyData.isAirline(_airlineAddress),
+            "Caller is NOT an airline"
+        );
+        _;
+    }
+
+    modifier requireIsApprovedAirline(address _airlineAddress) {
+        require(
+            flightSuretyData.isApprovedAirline(_airlineAddress),
+            "Caller is NOT an approved airline"
         );
         _;
     }
@@ -171,7 +189,7 @@ contract FlightSuretyApp {
     }
 
 
-    function fundAirline() public payable requireIsOperational {
+    function fundAirline() public payable requireIsOperational requireIsAirline(msg.sender) {
         flightSuretyData.fund(msg.sender, msg.value);
 
         payable(flightSuretyData).transfer(msg.value);
@@ -182,15 +200,17 @@ contract FlightSuretyApp {
         address airlineAddress,
         string calldata flightNo,
         uint256 timestamp
-    ) public payable requireIsOperational requireInsuranceLimit {
+    ) public payable requireIsOperational requireInsuranceLimit requireIsApprovedAirline(airlineAddress) {
        flightSuretyData.buy(msg.sender, msg.value, airlineAddress, flightNo, timestamp);
        payable(flightSuretyData).transfer(msg.value);
+       emit InsurancePurchased(msg.sender, msg.value, airlineAddress,  flightNo, timestamp);
     }
 
 
     function paxWithdrawPayout() public requireIsOperational requirePaxInsurancePayoutAvailable
     {
-        flightSuretyData.pay(msg.sender);
+        uint256 amount = flightSuretyData.pay(msg.sender);
+        emit PayoutWithdrawn(msg.sender, amount);
     }
 
     /**

@@ -165,9 +165,11 @@ contract('Flight Surety Tests', async (accounts) => {
 
         // 2 votes from 4 should approve airline 5, already has one vote from previous test
         await config.flightSuretyApp.voteAirline(AIRLINE_5, { from: AIRLINE_2 });
-
+        //console.log('voted');
         const isApprovedAirline = await config.flightSuretyData.isApprovedAirline.call(AIRLINE_5);
+        //console.log('isApprovedAirline:', isApprovedAirline);
         const getApprovedAirlinesCount = await config.flightSuretyData.getApprovedAirlinesCount.call();
+        //console.log('getApprovedAirlinesCount:', getApprovedAirlinesCount);
 
         // ASSERT
         assert.equal(isApprovedAirline, true, "Airline should be approved as voting consensus is 50% of approved airlines.");
@@ -252,7 +254,7 @@ contract('Flight Surety Tests', async (accounts) => {
             let getPaxInsurance = await config.flightSuretyData.getPaxInsurance(airline, flightNo, timestamp, pax);
             console.log("getPaxInsurance=" + getPaxInsurance);
 
-            // added so we can call the creditInsurees
+            // added so we can call the creditInsurees (this is simpler to run test)
             await config.flightSuretyData.authoriseCaller(accounts[0]);
             await config.flightSuretyData.creditInsurees(airline, flightNo, timestamp);
 
