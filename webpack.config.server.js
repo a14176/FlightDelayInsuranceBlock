@@ -5,6 +5,7 @@ const StartServerPlugin = require('start-server-webpack-plugin')
 
 module.exports = {
     entry: [
+        'babel-polyfill',
         'webpack/hot/poll?1000',
         './src/server/index'
     ],
@@ -20,6 +21,7 @@ module.exports = {
             exclude: /node_modules/
         }]
     },
+    mode: 'development',
     plugins: [
         new StartServerPlugin('server.js'),
         new webpack.NamedModulesPlugin(),

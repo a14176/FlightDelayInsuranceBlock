@@ -42,6 +42,9 @@ module.exports = {
   devServer: {
     contentBase: path.join(__dirname, "dapp"),
     port: 8000,
-    stats: "minimal"
+    stats: "minimal",
+    headers: {
+      'Access-Control-Allow-Origin': '*'
+    }
   }
 };
