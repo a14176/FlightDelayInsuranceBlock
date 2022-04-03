@@ -50,7 +50,7 @@ function getRandomInt(max) {
 }
 
 flightSuretyApp.events.OracleRequest({
-  fromBlock: 0
+  fromBlock: "latest"
 }, function (error, result) {
   if (error) {
     console.log(error);
@@ -72,7 +72,7 @@ flightSuretyApp.events.OracleRequest({
 
 
 flightSuretyApp.events.allEvents({
-  fromBlock: 0
+  fromBlock: "latest"
 }, function (error, result) {
   if (error) {
     console.log('allEvents error',error)
@@ -90,6 +90,8 @@ flightSuretyApp.events.allEvents({
 
     } else if (result.event == 'OracleReport') {
       console.log(`\nOracle Report: flight: ${result.returnValues.flight}, timestamp: ${result.returnValues.timestamp}, status: ${result.returnValues.status == STATUS_CODE_ON_TIME ? 'ON TIME' : 'DELAYED'}`);
+    } else if (result.event == 'InsurancePurchased') {
+      console.log(`\nInsurancePurchased for Passenger: ${result.returnValues.paxAddress} ,Flight: ${result.returnValues.flight}, Amount: ${result.returnValues.amount} ETH`);
 
     } else {
       console.log('unknown event ',result);

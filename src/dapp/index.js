@@ -27,7 +27,7 @@ import './flightsurety.css';
         });
 
         for (let a = 0; a < FLIGHTS.length; a++) {
-            addFlight(FLIGHTS[a]);
+            addFlightToDropdown(FLIGHTS[a]);
         }
     
         contract.flightSuretyApp.events.FlightStatusInfo({
@@ -40,6 +40,15 @@ import './flightsurety.css';
             }
         });
 
+        contract.flightSuretyApp.events.InsurancePurchased({
+            fromBlock: 'latest'
+        }, function (error, result) {
+            if (error) {
+                console.log(error);
+            } else {
+                display('Insurance Purchased Event', '', [ { label: 'Insurance:', error: error, value: `Passenger: ${result.returnValues.paxAddress} ,Flight: ${result.returnValues.flight}, Amount: ${result.returnValues.amount} ETH`} ]);
+            }
+        });
 
         // User-submitted transaction
         DOM.elid('submit-oracle').addEventListener('click', () => {
@@ -55,8 +64,10 @@ import './flightsurety.css';
             let sel = document.getElementById("select-flight");
             let flight = sel.options[sel.selectedIndex].value;
             let amount = DOM.elid('amount').value;
-            if(flight === "" || amount == "" || amount == 0) {
-                alert("select the flight");
+            if(flight === "") {
+                alert("Select the flight to insure");
+            } else if(amount == "" || amount == 0 || amount > 1) {
+                alert("Enter the insurance amount, maximum 1 ETH");
             } else {
                 DOM.elid('amount').value = "";
                 flight = JSON.parse(flight);
@@ -64,7 +75,8 @@ import './flightsurety.css';
                     if(error || result != "success") {
                         alert('Insurance purchase failed, have you entered ETH > 0 and <= 1');
                     } else {
-                        display('Buy Insurance', 'Insurance purchased by the passenger', [ { label: 'Insurance', error: error, value: `Flight: ${flight.flight}, Amount: ${amount} ETH`} ]);
+                        // use event to see this
+                        //display('Buy Insurance', 'Insurance purchased by the passenger', [ { label: 'Insurance', error: error, value: `Flight: ${flight.flight}, Amount: ${amount} ETH`} ]);
                     }
                 });
             }
@@ -94,7 +106,7 @@ function display(title, description, results) {
 
 }
 
-function addFlight(flight) {
+function addFlightToDropdown(flight) {
     let option = document.createElement("option");
     option.text =  `Flight ${flight.flight} departing ${new Date(flight.timestamp)}`;
     option.value = JSON.stringify(flight);

@@ -41,7 +41,8 @@ contract FlightSuretyApp {
     uint256 private constant PAX_INSURANCE_LIMIT = 1 ether;
 
     event PayoutWithdrawn(address paxAddress, uint256 value);
-    event InsurancePurchased(address paxAddress,uint256 amount,address airlineAddress,string  flightNo,uint256 timestamp);
+    event InsurancePurchased(address paxAddress,uint256 amount,address airlineAddress,string flight,uint256 timestamp);
+    event AirlineApproved(address airlineAddress);
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
     /********************************************************************************************/
@@ -116,7 +117,7 @@ contract FlightSuretyApp {
         _;
     }
 
-    modifier requireUniqueVote(address _airlineAddress) {
+    modifier requireCallerUniqueVote(address _airlineAddress) {
         require(
             flightSuretyData.isUniqueVote(_airlineAddress,msg.sender),
             "Caller has already voted for this airline"
@@ -170,6 +171,7 @@ contract FlightSuretyApp {
     {
         uint256 operationalAirlines = flightSuretyData.getApprovedAirlinesCount();
 
+        // the true/false attribute allows the concensus rules to be applied
         if (operationalAirlines < 4) {
             flightSuretyData.registerAirline(airline, _name, true);
         } else {
@@ -179,35 +181,55 @@ contract FlightSuretyApp {
         return (true);
     }
 
+    // an approved airline can vote for a registered airline
     function voteAirline(address airlineAddress)
         external
         requireIsOperational
         requireCallerIsApprovedAirline // check sender is an approved airline
-        requireUniqueVote(airlineAddress) // we need to check sender hasn't already voted
+        requireCallerUniqueVote(airlineAddress) // we need to check sender hasn't already voted
     {
         flightSuretyData.voteAirline(airlineAddress,msg.sender);
+        
+        if (flightSuretyData.isApprovedAirline(airlineAddress)){
+            emit AirlineApproved(airlineAddress);
+        }
     }
 
-
-    function fundAirline() public payable requireIsOperational requireIsAirline(msg.sender) {
+    // this only allows the airline to fund itself
+    function fundAirline() public payable 
+        requireIsOperational 
+        requireIsAirline(msg.sender) 
+    {
         flightSuretyData.fund(msg.sender, msg.value);
 
         payable(flightSuretyData).transfer(msg.value);
+
+        if (flightSuretyData.isApprovedAirline(msg.sender)){
+            emit AirlineApproved(msg.sender);
+        }
     }
 
-
+    // purchase insurance for the airline and flight
+    // this doesn't yet check whether the passenger has alreday purchased insurance, 
+    // nor does it check whether the flight is in the past, these would be good improvements
     function buyInsurance(
         address airlineAddress,
         string calldata flightNo,
         uint256 timestamp
-    ) public payable requireIsOperational requireInsuranceLimit requireIsApprovedAirline(airlineAddress) {
+    ) public payable 
+        requireIsOperational 
+        requireInsuranceLimit 
+        requireIsApprovedAirline(airlineAddress) 
+    {
        flightSuretyData.buy(msg.sender, msg.value, airlineAddress, flightNo, timestamp);
        payable(flightSuretyData).transfer(msg.value);
        emit InsurancePurchased(msg.sender, msg.value, airlineAddress,  flightNo, timestamp);
     }
 
 
-    function paxWithdrawPayout() public requireIsOperational requirePaxInsurancePayoutAvailable
+    function paxWithdrawPayout() public 
+        requireIsOperational 
+        requirePaxInsurancePayoutAvailable
     {
         uint256 amount = flightSuretyData.pay(msg.sender);
         emit PayoutWithdrawn(msg.sender, amount);

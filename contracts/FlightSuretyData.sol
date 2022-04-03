@@ -60,7 +60,6 @@ contract FlightSuretyData {
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
-    event AirlineApproved(address airlineAddress, string name);
 
     /**
      * @dev Constructor
@@ -71,7 +70,7 @@ contract FlightSuretyData {
         firstAirline = airlineAddress;
         // add the first airline
         EnumerableSet.add(approvedAirlines, airlineAddress);
-        //approvedAirlines.add(airlineAddress);
+       
         airlines[airlineAddress] = Airline({
             name: airlineName,
             isFunded: true,
@@ -327,7 +326,6 @@ contract FlightSuretyData {
         requireAuthorisedContract
         requireNewAirline(_airlineAddress)
     {
-        // not sure i need to use this register queue
         EnumerableSet.add(registerAirlineQueue, _airlineAddress);
 
         airlines[_airlineAddress] = Airline({
@@ -350,8 +348,6 @@ contract FlightSuretyData {
             airlines[airlineAddress].isApproved = true;
             EnumerableSet.add(approvedAirlines, airlineAddress);
             EnumerableSet.remove(registerAirlineQueue, airlineAddress);
-
-            emit AirlineApproved(airlineAddress, airlines[airlineAddress].name);
         }
     }
 
@@ -362,7 +358,7 @@ contract FlightSuretyData {
         // add their vote
         airlines[_forAirlineAddress].voters.push(_fromAirlineAddress);
 
-        // div function torounds down so need to add the remainder via mod for this to work
+        // div function rounds down so need to add the remainder via mod for this to work
         if (
             airlines[_forAirlineAddress].voters.length >=
             (EnumerableSet.length(approvedAirlines).div(2) +
@@ -383,7 +379,7 @@ contract FlightSuretyData {
         address airlineAddress,
         string calldata flightNo,
         uint256 timestamp
-    ) external payable requireAuthorisedContract requireIsOperational {
+    ) external payable requireIsOperational requireAuthorisedContract {
         require(amount > 0, "Did not send any amount.");
 
         bytes32 flightKey = getFlightKey(airlineAddress, flightNo, timestamp);
@@ -409,10 +405,10 @@ contract FlightSuretyData {
     ) external requireIsOperational requireAuthorisedContract {
         bytes32 flightKey = getFlightKey(airlineAddress, flight, timestamp);
 
-        PaxInsurance[] memory insPolicies = paxInsurancePolicies[flightKey];
+        PaxInsurance[] storage insPolicies = paxInsurancePolicies[flightKey];
 
         for (uint256 index = 0; index < insPolicies.length; index++) {
-            PaxInsurance memory insPolicy = insPolicies[index];
+            PaxInsurance storage insPolicy = insPolicies[index];
             if (insPolicy.paidOut == false) {
                 // calc payout
                 uint256 payoutValue = insPolicy
@@ -436,11 +432,11 @@ contract FlightSuretyData {
         payable
         requireIsOperational
         requireAuthorisedContract
-        returns (uint256 amt)
+        returns (uint256)
     {
         require(
             paxInsurancePayouts[_paxAddress] > 0,
-            "No payouts exist for withdrawing"
+            "No insurance payout exists for this passenger"
         );
 
         uint256 amount = paxInsurancePayouts[_paxAddress];
